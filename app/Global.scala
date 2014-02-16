@@ -17,14 +17,15 @@ object Global extends GlobalSettings {
 //TODO Insert our data at app startup
 /**
  * Initial set of data to be imported
- * in the sample application.
  */
 object InitialData {
 
-  val sdf = new SimpleDateFormat("yyyy-MM-dd")
+  //val sdf = new SimpleDateFormat("yyyy-MM-dd")
 
   def insert() {
-    
-    
+    println("inserting on startup")
+    DB.withSession { implicit s: Session =>
+      Questions.seed()
+    }
   }
 }
