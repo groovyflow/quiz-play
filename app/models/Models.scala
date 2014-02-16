@@ -64,6 +64,10 @@ object Questions extends DAO {
     Questions.insert(question)
   }
   
+  def insert(choice: Choice)(implicit s: Session) = {
+    Choices += choice
+  }    
+  
   def findAll()(implicit s: Session) = {
     //TODO Compiled statements
     val query = for{
@@ -137,6 +141,10 @@ object Questions extends DAO {
 }
 
 object Results extends DAO {
+  def insert(result: Result)(implicit s: Session) = {
+    Results += result
+  }  
+  
    def find(id: Int)(implicit s: Session):Option[Result] = {
 	   val res = Results.where(_.id === id).firstOption
 	   println("Results find retrieved " + res)
