@@ -1,0 +1,27 @@
+# Routes
+# This file defines all application routes (Higher priority routes first)
+# ~~~~
+
+# Default path will just redirect to the computer list
+#GET     /                           controllers.Application.index
+
+
+# Map static resources from the /public folder to the /assets URL path
+GET     /assets/*file               controllers.Assets.at(path="/public", file)
+
+GET    /questions/index            controllers.Expt.index
+
+#TODO  Shouldn't need to create data like this!! But my evolutions are overwritten by slick plugin.  Need to figure this out
+#HEY!! Now I know we insert in global!!
+GET    /questions/seed            controllers.Expt.seed
+
+#TODO  Should be post:
+GET   /questions/create                  controllers.Expt.create
+
+GET /questions/:id                      controllers.Expt.find(id: Int)
+
+GET    /questions                  controllers.Expt.get
+
+GET /questions/quiz/first                    controllers.Expt.quizFirst
+POST /questions/quiz/reply                    controllers.Expt.quizReply
+
