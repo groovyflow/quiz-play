@@ -83,22 +83,22 @@ object Questions extends DAO {
   //TODO Put this logic in Global::insertData. But make sure all our DAOs have insert methods
   def seed()(implicit s: Session) = {
     if (Query(Questions.length).first == 0) {
-      Results += Result(Some(1), "Result A")
-      Results += Result(Some(2), "Result B")
-      Results += Result(Some(3), "Result C")
-      Results += Result(Some(4), "Result D")
-      Questions += Question(1, "hello?")
-      Choices += Choice(1, "a", questionId = Some(1), nextQuestionId = Some(2), None)
-      Choices += Choice(2, "b", questionId = Some(1), nextQuestionId = Some(3), None)
-      Choices += Choice(3, "c", questionId = None, nextQuestionId = None, None)
+      Results += Result(Some(1), "You are suited for the motor industry.")
+      Results += Result(Some(2), "You are ready to become a tycoon.")
+      Results += Result(Some(3), "Your future is in the financial sector.")
+      Results += Result(Some(4), "You are unlikely to find steady work.")
+      Questions += Question(1, "What kind of work environment do you prefer?")
+      Choices += Choice(1, "Intense.", questionId = Some(1), nextQuestionId = Some(2), None)
+      Choices += Choice(2, "Friendly.", questionId = Some(1), nextQuestionId = Some(3), None)
 
-      Questions += Question(2, "2")
-      Choices += Choice(4, "c", questionId = Some(2), None, Some(1))
-      Choices += Choice(5, "d", questionId = Some(2), None, Some(2))
 
-      Questions += Question(3, "3")
-      Choices += Choice(6, "e", questionId = Some(3), None, Some(3))
-      Choices += Choice(7, "f", questionId = Some(3), None, Some(4))
+      Questions += Question(2, "Please choose a favorite hobby from the options below:")
+      Choices += Choice(4, "Tinkering with cars.", questionId = Some(2), None, Some(1))
+      Choices += Choice(5, "Reading the newspaper.", questionId = Some(2), None, Some(2))
+
+      Questions += Question(3, "What is your favorite food?")
+      Choices += Choice(6, "Smoked salmon", questionId = Some(3), None, Some(3))
+      Choices += Choice(7, "Smoked cigarette butt", questionId = Some(3), None, Some(4))
       println("find all returns " + findAll)
     }
   }
