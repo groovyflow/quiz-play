@@ -21,7 +21,3 @@ GET    /questions                  controllers.Application.get
 
 GET /questions/quiz/first                    controllers.Application.quizFirst
 POST /questions/quiz/reply                    controllers.Application.quizReply
-
-#TODO Probably shouldn't be GET for login  And how the heck do you handle good old fashioned query parameters!!
-GET /login/:name                                    controllers.LinkedInAuth.login(name: String)
-GET /showlogin								   controllers.LinkedInAuth.show()
