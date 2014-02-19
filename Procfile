@@ -1,1 +1,1 @@
-web: play run -Dhttp.port=$PORT $PLAY_OPTS -DapplyEvolutions.default=true
+web: target/universal/stage/bin/quiz-play -Dhttp.port=$PORT $PLAY_OPTS -DapplyEvolutions.default=true
