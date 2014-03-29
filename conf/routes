@@ -10,14 +10,7 @@
 GET     /assets/*file               controllers.Assets.at(path="/public", file)
 
 GET    /questions/index            controllers.Application.index
-
-
-#TODO  Should be post:
-GET   /questions/create                  controllers.Application.create
-
-GET /questions/:id                      controllers.Application.find(id: Int)
-
 GET    /questions                  controllers.Application.get
 
-GET /questions/quiz/first                    controllers.Application.quizFirst
+GET /questions/quiz/first                    controllers.Application.findInitialQuestion
 PUT /questions/quiz/reply                    controllers.Application.quizReply

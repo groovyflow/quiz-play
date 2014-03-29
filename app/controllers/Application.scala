@@ -30,7 +30,7 @@ import views.html.defaultpages.badRequest
 
 object Application extends Controller{
   
-  //http://www.playframework.com/documentation/2.2.x/ScalaJsonCombinators 
+  //See http://www.playframework.com/documentation/2.2.x/ScalaJsonCombinators 
   
   implicit val questionReads: Reads[ Question] = (
       (JsPath \ "id").read[Int] and
@@ -46,7 +46,7 @@ object Application extends Controller{
        (JsPath \ "result").readNullable[Int]
        )(Choice.apply _)
        
- //!!IMPORTANT!!  This combination reads must be defined after its constituent reads
+ //!!IMPORTANT!!  This combination reads must be after (that is, lower in the file) than the consituent question and choice Reads
  case class QuizReplyArg(question: Question, options: Seq[Choice], numChosen: Int)  
   implicit val quizReplyArgReads: Reads[QuizReplyArg] = (
     (JsPath \ "prevQuestion" \ "question").read[Question] and
@@ -74,7 +74,7 @@ object Application extends Controller{
           Answers.insert(Answer(None, quizReplyArg.question.id, chosen.id))
           chosen.nextQuestionId match {
             case Some(nextQuestionId) => //the choice has a next questionid, so let's find that question and its assocatied choices
-              findQAndChJson(nextQuestionId).map(nextQuestion => Json.obj("data" -> nextQuestion, "status" -> "continue")) match {
+              makeJsonForQuestionAndChoices(nextQuestionId).map(nextQuestion => Json.obj("data" -> nextQuestion, "status" -> "continue")) match {
                 case None => BadRequest("no question for id " + nextQuestionId)
                 case Some(jsonReplyContainingNextQuestionAndChoices) => Ok(jsonReplyContainingNextQuestionAndChoices)
               }
@@ -97,40 +97,17 @@ object Application extends Controller{
   }
   
 
-  def quizFirst = Action { request =>
-    println("quizFirst called")
+  def findInitialQuestion = Action { request =>
+    println("findInitialQuestion called")
     play.api.db.slick.DB.withSession { implicit session: play.api.db.slick.Session =>
-      Ok(Json.obj("data" -> Some(findQAndChJson(1)), "status" -> "continue"))
+      Ok(Json.obj("data" -> Some(makeJsonForQuestionAndChoices(1)), "status" -> "continue"))
     }
 
   }
   
-  def create = DBAction { implicit rs =>
-    Ok(Json.obj("id" -> Questions.insert(Question(3, text="whee"))))
-  }
   
-  //TODO  Maybe get rid of this. Or change it back so that it doesn't have the added "data" and "status" keys, which
-  //were merely a practice for quizReply
- def find(id: Int) = DBAction { implicit rs =>
-   println("find has been called")
-   //Should do option map here!! 
-   val listOfAnswersAndChoices = Questions.qAndC(id)
-   listOfAnswersAndChoices.headOption match {
-     case None => InternalServerError("no question for id = " + id)
-     case Some(_) => 
-       //TDOO Need result and result table too!
-       val options = listOfAnswersAndChoices.map{ case(quest, choice) =>  Json.obj("text" -> choice.text, "next" -> choice.nextQuestionId) }
-      // Ok(Json.obj("question" -> listOfAnswersAndChoices.head._1.text, "options" -> options ))
-       println("what the fuck?")
-       println("findQAndCh in Expt::find " +    findQAndChJson(id))
-       println("what we want " + Json.obj("data" -> findQAndChJson(id).toString, "status" -> "continue"))
-       //Ok(findQAndCh(id))
-       //Ok(Json.obj("question" -> listOfAnswersAndChoices.head._1.text, "options" -> options ))
-       Ok(Json.obj("data" -> Some(findQAndChJson(id)), "status" -> "continue"))
-   }
-  }
- 
- def findQAndChJson(id: Int)(implicit s: play.api.db.slick.Session): Option[JsObject] = {
+
+ def makeJsonForQuestionAndChoices(id: Int)(implicit s: play.api.db.slick.Session): Option[JsObject] = {
    val listOfAnswersAndChoices = Questions.qAndC(id)
    listOfAnswersAndChoices.headOption match {
      case None => None
