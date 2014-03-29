@@ -19,7 +19,7 @@ function app() {
 function handleData(data, drawFunc) {
     if(data.status === 'continue')  {
         console.log('status is continue')
-        resetQuestionNumberHelper();
+        incrementQuestionNumber();
         drawFunc(data.data);
         listen(data.data, drawFunc);
     }else if(data.status === 'done'){
@@ -29,9 +29,10 @@ function handleData(data, drawFunc) {
         throw Error("unhandeled status " + data.status)
 }
 
-function resetQuestionNumberHelper() {
+function incrementQuestionNumber() {
     //TODO  Does re-regsisterin cause memorey problems?
-    var optionIdIndex = 0;
+	//We start at 1 because it seems that the number 0 gets sent as JSON ""
+    var optionIdIndex = 1;
     Handlebars.registerHelper("questionNumber", function () {
         return optionIdIndex++;
     })
@@ -47,9 +48,12 @@ function listen(currData, drawFunc) {
     //TODO  Is there a memory problem as a result of adding the same listener over and over again?
     $('#questionsForm').submit(function (event) {
         console.log("submit called")
-        var answer = $('#questionsForm input[name=questionChoice]:checked').val();
-        console.log("the answer is " + answer);
-        if (isEmpty(answer)) {
+        //alert("YOOO")
+        var answer = parseInt( $('#questionsForm input[name=questionChoice]:checked').val()) ;
+        //answer = parseInt(answer)
+        console.log("the answer is " + answer  );
+        console.log(typeof answer)
+        if (isNaN(answer)) {
             $('#questionsForm .error').text("Please choose an answer before submitting").show().fadeOut(3000);
         }
         else  {
@@ -76,7 +80,7 @@ function getNext(prevQuestion, answer) {
         })/*Without stringify we get a weird error*/,
         dataType: 'json',
         processData: true,
-        type: isEmpty(prevQuestion) ? "GET" : "POST",  /*Want to send request body on reply, and can't do that on GET. And after all, a user's quiz reply should change the user's  representation on the server side */
+        type: isEmpty(prevQuestion) ? "GET" : "PUT",  /*Want to send request body on reply, and can't do that on GET. And after all, a user's quiz reply should change the user's  representation on the server side */
         url: isEmpty(prevQuestion) ? 'quiz/first' : 'quiz/reply'
     });
 

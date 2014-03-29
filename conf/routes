@@ -20,4 +20,4 @@ GET /questions/:id                      controllers.Application.find(id: Int)
 GET    /questions                  controllers.Application.get
 
 GET /questions/quiz/first                    controllers.Application.quizFirst
-POST /questions/quiz/reply                    controllers.Application.quizReply
+PUT /questions/quiz/reply                    controllers.Application.quizReply

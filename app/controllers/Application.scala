@@ -8,8 +8,9 @@ import play.api.db.slick._
 import play.api.Play.current
 import models._
 import play.api.libs.json.JsPath
-import play.api.libs.json.Json
-import play.api.libs.json.{JsValue, JsArray, JsObject, JsUndefined, JsNull}
+import play.api.libs.json._
+import play.api.libs.json.Reads._
+import play.api.libs.functional.syntax._ 
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
 import views.html.defaultpages.badRequest
@@ -29,62 +30,72 @@ import views.html.defaultpages.badRequest
 
 object Application extends Controller{
   
-
+  //http://www.playframework.com/documentation/2.2.x/ScalaJsonCombinators 
   
+  implicit val questionReads: Reads[ Question] = (
+      (JsPath \ "id").read[Int] and
+      (JsPath \ "text") .read[String]
+      )(Question.apply _)
+      
+      
+   implicit val choiceReads: Reads[Choice] = (
+       (JsPath \ "id").read[Int] and
+       (JsPath \ "text").read[String] and
+       (JsPath \ "questionId").readNullable[Int] and
+       (JsPath \ "next").readNullable[Int] and
+       (JsPath \ "result").readNullable[Int]
+       )(Choice.apply _)
+       
+ //!!IMPORTANT!!  This combination reads must be defined after its constituent reads
+ case class QuizReplyArg(question: Question, options: Seq[Choice], numChosen: Int)  
+  implicit val quizReplyArgReads: Reads[QuizReplyArg] = (
+    (JsPath \ "prevQuestion" \ "question").read[Question] and
+    (JsPath \ "prevQuestion" \ "options").read[Seq[Choice]] and
+    (JsPath \ "answer").read[Int]
+  )(QuizReplyArg.apply _)       
+  
+
   def index = Action {
-    println("index has been called")
+    println("index has been called.")
     Ok(views.html.index())
   }
 
-  //TODO!! Getting pretty messy without using JSON readers and writers!! But remember, the shape of
-  //the JSON changes depending on whether we need to send another question or a result.
   def quizReply = Action(parse.json) { request =>
     play.api.db.slick.DB.withSession { implicit session: play.api.db.slick.Session =>
-
       println("request.body is " + request.body)
-      val answer = request.body \ "answer"
-      val options = request.body \ "prevQuestion" \ "options"
-      val userChoseThisOne = options.as[IndexedSeq[JsValue]].apply(jsValToInt(answer))
-      val nextQuestionId = userChoseThisOne \ "next"
-      Answers.insert(Answer(None, jsValToInt(request.body \ "prevQuestion" \ "question" \ "id"), jsValToInt(userChoseThisOne \ "id")))
 
-      if (!isEmpty(nextQuestionId)) {
-        findQAndChJson(jsValToInt(nextQuestionId)).map(nextQuestion => Json.obj("data" -> nextQuestion, "status" -> "continue")) match {
-          case None => Ok("no question for id " + jsValToInt(nextQuestionId))
-          case Some(x) => Ok(x)
-        }
-      } else {
-        val resultId = userChoseThisOne \ "result"
-        if (isEmpty(resultId)) BadRequest("No result for " + resultId)
-        else {
-          models.Results.find(jsValToInt(resultId)) match {
-            case None => BadRequest("No result for " + resultId)
-            case Some(result) =>
-              Ok(Json.obj("status" -> "done", "result" -> Json.obj("text" -> result.text)))
+      val quizReplyArg = (request.body).validate[QuizReplyArg]
+      println("quizReplyArg is " + quizReplyArg)
+      quizReplyArg.fold(
+        invalid = { errors => BadRequest(JsError.toFlatJson(errors)) },
+        valid = { quizReplyArg: QuizReplyArg =>
+          //numOfChosen starts at 1 rather than 0, and that's why we need to subtract 1 to transform to a valid list index
+          val chosen: Choice = quizReplyArg.options(quizReplyArg.numChosen - 1)
+          Answers.insert(Answer(None, quizReplyArg.question.id, chosen.id))
+          chosen.nextQuestionId match {
+            case Some(nextQuestionId) => //the choice has a next questionid, so let's find that question and its assocatied choices
+              findQAndChJson(nextQuestionId).map(nextQuestion => Json.obj("data" -> nextQuestion, "status" -> "continue")) match {
+                case None => BadRequest("no question for id " + nextQuestionId)
+                case Some(jsonReplyContainingNextQuestionAndChoices) => Ok(jsonReplyContainingNextQuestionAndChoices)
+              }
+            case None =>  //There is no next question, so let's see if the quiz is over and we have a result to tell the user.
+              chosen.resultId match {
+                case None => BadRequest("No nextQuestion and no result on chosen answer")
+                case Some(resultId) =>
+                  models.Results.find(resultId) match {
+                    case None => BadRequest("No Result domain object for " + resultId)
+                    case Some(result) =>
+                      Ok(Json.obj("status" -> "done", "result" -> Json.obj("text" -> result.text)))
+                  }
+              }
           }
+
         }
-      }
+      )
+
     }
   }
   
-  //TODD  This should return an Option, probably by doing a Try in case of None.
-  //Why do we need this? Because sometimes an Int is treated as a String rather than as a JsNumber, and
-  //asOpt[JsInt] will throw an exception!  
-  def jsValToInt(value: JsValue):Int = {
-		  value.asOpt[Int] match {
-		    case Some(x) => x
-		    case None =>
-		      value.as[String].toInt
-		  }
-  }
-
-  def isEmpty(value: JsValue): Boolean = {
-    value match {
-      case _: JsUndefined => true
-      case JsNull => true
-      case _ => false
-    }
-  }
 
   def quizFirst = Action { request =>
     println("quizFirst called")
@@ -124,12 +135,11 @@ object Application extends Controller{
    listOfAnswersAndChoices.headOption match {
      case None => None
      case Some(_) => 
-       //TDOO Need result and result table too!
-       val options = listOfAnswersAndChoices.map{ case(quest, choice) =>  Json.obj("id" -> Some(choice.id), "text" -> choice.text, "next" -> choice.nextQuestionId, "result" -> choice.resultId ) }
+       val choicesForThisQuestion = listOfAnswersAndChoices.map{ case(quest, choice) =>  Json.obj("id" -> Some(choice.id), "text" -> choice.text, "next" -> choice.nextQuestionId, "result" -> choice.resultId ) }
         Some(Json.obj(
           "question" ->
             Json.obj("text" -> listOfAnswersAndChoices.head._1.text, "id" -> Some(listOfAnswersAndChoices.head._1.id)),
-          "options" -> options))
+          "options" -> choicesForThisQuestion))
    }   
    
  }
