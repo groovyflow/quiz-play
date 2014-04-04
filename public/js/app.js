@@ -30,7 +30,7 @@ function handleData(data, drawFunc) {
 }
 
 function incrementQuestionNumber() {
-    //TODO  Does re-regsisterin cause memorey problems?
+    //TODO  Does re-regsisering cause memorey problems?
 	//We start at 1 because it seems that the number 0 gets sent as JSON ""
     var optionIdIndex = 1;
     Handlebars.registerHelper("questionNumber", function () {

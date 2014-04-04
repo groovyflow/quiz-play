@@ -64,9 +64,9 @@ object Application extends Controller{
     play.api.db.slick.DB.withSession { implicit session: play.api.db.slick.Session =>
       println("request.body is " + request.body)
 
-      val quizReplyArg = (request.body).validate[QuizReplyArg]
-      println("quizReplyArg is " + quizReplyArg)
-      quizReplyArg.fold(
+      val quizReplyArgInJsResult: JsResult[QuizReplyArg] = (request.body).validate[QuizReplyArg]
+      println("quizReplyArg is " + quizReplyArgInJsResult)
+      quizReplyArgInJsResult.fold(
         invalid = { errors => BadRequest(JsError.toFlatJson(errors)) },
         valid = { quizReplyArg: QuizReplyArg =>
           //numOfChosen starts at 1 rather than 0, and that's why we need to subtract 1 to transform to a valid list index
