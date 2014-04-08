@@ -28,9 +28,40 @@ import views.html.defaultpages.badRequest
   }
  */
 
+
+
+
 object Application extends Controller{
   
   //See http://www.playframework.com/documentation/2.2.x/ScalaJsonCombinators 
+  
+  
+  //AuthenticatedRequest and Authenticated are taken straight from http://www.playframework.com/documentation/2.2.x/ScalaActionsComposition
+  class AuthenticatedRequest[A](val username: String, request: Request[A]) extends WrappedRequest[A](request)
+
+  object Authenticated extends ActionBuilder[AuthenticatedRequest] {
+    def invokeBlock[A](request: Request[A], block: (AuthenticatedRequest[A]) => Future[SimpleResult]) = {
+      request.session.get("username").map { username =>
+        block(new AuthenticatedRequest(username, request))
+      } getOrElse {
+        println("No username in session!")
+        Future.successful(Forbidden)
+      }
+    }
+  }
+  
+  def login = Action { request =>
+    play.api.db.slick.DB.withSession { implicit session: play.api.db.slick.Session =>
+    	val usernameAndPassword: Option[(String, String)] = request.getQueryString("username").flatMap(userName => 
+	    	request.getQueryString("password").map(password => (userName, password) ))
+	    val userOption: Option[User] = usernameAndPassword.flatMap{case(username, password) => Users.findByUsernameAndPassword(username, password) }
+    	//Why can't I do "logged in " + user.username??
+    	//By the way, you can only store a String in the Play Session. See http://www.playframework.com/documentation/2.0/ScalaSessionFlash 
+	    userOption.map{user: User => Ok( Json.obj("status" -> "logged in " ) ).withSession{"username" -> user.username}    }.getOrElse {
+	      Forbidden
+	    } 
+    }
+  }
   
   implicit val questionReads: Reads[ Question] = (
       (JsPath \ "id").read[Int] and
@@ -60,7 +91,7 @@ object Application extends Controller{
     Ok(views.html.index())
   }
 
-  def quizReply = Action(parse.json) { request =>
+  def quizReply = Authenticated(parse.json) { request: AuthenticatedRequest[JsValue] =>
     play.api.db.slick.DB.withSession { implicit session: play.api.db.slick.Session =>
       println("request.body is " + request.body)
 
@@ -71,7 +102,11 @@ object Application extends Controller{
         valid = { quizReplyArg: QuizReplyArg =>
           //numOfChosen starts at 1 rather than 0, and that's why we need to subtract 1 to transform to a valid list index
           val chosen: Choice = quizReplyArg.options(quizReplyArg.numChosen - 1)
-          Answers.insert(Answer(None, quizReplyArg.question.id, chosen.id))
+          
+          //Get the username from the AuthenticatedRequest, which is a Request enriched by our Authenticated ActionBuilder.
+          //Would be nice if we could check if there's no user for the username, because in that case we should return InternalServerError
+          val userOption: Option[User] = Users.findByUsername(request.username)
+          Answers.insert(Answer(None, quizReplyArg.question.id, chosen.id, userOption.get.id.get))
           chosen.nextQuestionId match {
             case Some(nextQuestionId) => //the choice has a next questionid, so let's find that question and its assocatied choices
               makeJsonForQuestionAndChoices(nextQuestionId).map(nextQuestion => Json.obj("data" -> nextQuestion, "status" -> "continue")) match {
@@ -97,7 +132,7 @@ object Application extends Controller{
   }
   
 
-  def findInitialQuestion = Action { request =>
+  def findInitialQuestion = Authenticated { request:  AuthenticatedRequest[AnyContent] =>
     println("findInitialQuestion called")
     play.api.db.slick.DB.withSession { implicit session: play.api.db.slick.Session =>
       Ok(Json.obj("data" -> Some(makeJsonForQuestionAndChoices(1)), "status" -> "continue"))
