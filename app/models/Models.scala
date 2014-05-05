@@ -23,24 +23,18 @@ case class Question(id: Int, text: String)
 class Questions(tag: Tag) extends Table[Question](tag, "QUESTIONS") {
    def id = column[Int]("id", O.PrimaryKey, O.AutoInc)
    def text: Column[String] = column[String]("TEXT")
-   //def * : ProvenShape[(Int, String)] = (id, text) //Why not ProvenShape[Quesion] or ProvenShape[Question.unapply] or something?
    def * = (id, text) <> (Question.tupled, Question.unapply)
 }
 
 case class Choice(id: Int, text: String, questionId: Option[Int], nextQuestionId: Option[Int], resultId: Option[Int])
-//TODO  I saw examples that didn't seem to use Column[Option[<Primitve-Type>]], but gettring rid of that here caused
-//a "NULL Not allowed for column ... error".  And this even happened when I had my nextQuestionId.? syntax in the 'def *' function
 class Choices(tag: Tag) extends Table[Choice](tag, "Choices") {
    def id = column[Int]("id", O.PrimaryKey, O.AutoInc)
    def text: Column[String] = column[String]("TEXT")
    def questionId = column[Option[Int]]("QUESTION_ID")
-   //TODO Don't know how to make this a nullable foreign key!!
    def nextQuestionId = column[Option[Int]]("NEXT_QUESTION_ID")
    def resultId = column[Option[Int]]("RESULT_ID")
    def * =  (id, text, questionId, nextQuestionId, resultId) <> (Choice.tupled, Choice.unapply)
-   //def * : ProvenShape[(Int, String, Int)] = (id, text, questionId)
    def question= foreignKey("Quest_FK", questionId, TableQuery[Questions])(_.id)
-   //def nextQuestion= foreignKey("NQuest_FK", nextQuestionId, TableQuery[Questions])(_.id)
 }
 
 case class Result(id: Option[Int], text: String)
@@ -96,18 +90,14 @@ object Questions extends DAO {
   }    
   
   def findAll()(implicit s: Session) = {
-    //TODO!! Compiled statements
     val query = for{
       ques <- QuestionsTableQuery
     }yield(ques)
     println("questions query Statement is " + query.selectStatement)
     println("query result is " + query.list.map(row => row.text))
-    //query.list.map(row => row.text)
     query.list
-    //Questions.insert(question)
   }  
   
-  //TODO Put this logic in Global::insertData. But make sure all our DAOs have insert methods
   def seed()(implicit s: Session) = {
     if (Query(QuestionsTableQuery.length).first == 0) {
       ResultsTableQuery += Result(Some(1), "You are suited for the motor industry.")
@@ -143,29 +133,6 @@ object Questions extends DAO {
     println("result of qAndC query was " + res)
     res
   }
-  
-  //Different synax, same result, and this one depends on having defined a foreign key, so we're not using it.
-/*  def qAndC(id: Int)(implicit s: Session) = {
-    val questionAndChoices = for {
-      cho <- Choices
-      quest <- cho.question if quest.id === id //Had to use equals with three '='.  That is, '==='
-    }yield(quest, cho)    
-    questionAndChoices.list
-  }  */
-  
-  //Todo Tried to compile, but got this error: could not find implicit value for parameter s: play.api.db.slick.Config.driver.simple.Session
-  //Looks like I need to compile inside a session.  How would that work?
-  //val qAndCCompiled = Compiled(q_c _)
-  
-
-
-/*
-    val questionAndOptions = for {
-      opt <- options
-      quest <- questions if quest.id === 1 && opt.questionId === quest.id//Had to use equals with three '='.  That is, '==='
-    }yield(opt, quest)
- */  
-  
   
 }
 
